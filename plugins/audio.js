@@ -67,13 +67,18 @@ function initAudio()
 
 		cl.on( 'ready', e =>
 			{
-				audioBots.push( cl )
-				module.exports.numHelpers++
 				_.logEvent( cl, 'helper-ready', e )
 
 				const activity = settings.get( 'botactivity', cl.user.id, false )
 				if ( activity )
 					cl.user.setActivity( activity.message, { type: activity.type } )
+
+
+				if ( cl.initialized ) return
+				cl.initialized = true
+
+				audioBots.push( cl )
+				module.exports.numHelpers++
 			})
 
 		cl.on( 'disconnect', e =>
