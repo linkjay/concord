@@ -88,7 +88,7 @@ function initAudio()
 			})
 		cl.on( 'reconnecting', e => _.logEvent( cl, 'helper-reconnecting', e ) )
 		cl.on( 'resumed', e => _.logEvent( cl, 'helper-resumed', e ) )
-		
+
 		cl.on( 'guildCreate', e => _.logEvent( cl, 'helper-guildCreate', e ) )
 		cl.on( 'guildDelete', e => _.logEvent( cl, 'helper-guildDelete', e ) )
 		cl.on( 'guildUnavailable', e => _.logEvent( cl, 'helper-guildUnavailable', e ) )
@@ -1093,14 +1093,26 @@ commands.register( {
 	category: 'audio',
 	aliases: [ 'skip', 's', 'forceskip' ],
 	help: 'force-skip the current song',
-	flags: [ 'admin_only', 'no_pm' ],
+	flags: [ 'no_pm' ],
 	callback: ( client, msg, args ) =>
 	{
 		const sess = findSession( msg )
 		if ( sess )
 		{
-			sess.loop = false
-			skip_playback( sess )
+			const song = sess.queue[0]
+			if ( !song )
+				return msg.channel.send( 'nothing is currently playing' )
+
+			if ( song.queuedby.id === msg.member.id || permissions.hasAdmin( msg.member ) )
+			{
+				sess.loop = false
+				skip_playback( sess )
+			}
+			else
+			{
+				const by_user = get_queuedby_user( song )
+				msg.channel.send( `you do not have permission to skip this song (queued by \`${by_user}\`)` )
+			}
 		}
 	} })
 
