@@ -55,6 +55,9 @@ client.on( 'ready', e =>
 	})
 
 client.on( 'disconnect', e => _.logEvent( client, 'disconnect', e ) )
+client.on( 'reconnecting', e => _.logEvent( client, 'reconnecting', e ) )
+client.on( 'resumed', e => _.logEvent( client, 'resumed', e ) )
+
 client.on( 'guildCreate', e => _.logEvent( client, 'guildCreate', e ) )
 client.on( 'guildDelete', e => _.logEvent( client, 'guildDelete', e ) )
 client.on( 'guildUnavailable', e => _.logEvent( client, 'guildUnavailable', e ) )
