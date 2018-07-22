@@ -1029,7 +1029,7 @@ commands.register( {
 			return msg.channel.send( `no previous search results stored for this channel` )
 
 		const num = parseInt(args)
-		if ( num > settings.get( 'audio', 'max_search_results', 10 ) )
+		if ( isNaN( num ) || num <= 0 || num > settings.get( 'audio', 'max_search_results', 10 ) )
 			return msg.channel.send( 'invalid search result number' )
 
 		playURL( searchResults[ chan.id ][num-1], msg )
