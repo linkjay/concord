@@ -170,6 +170,7 @@ const eventAllowance = {}
 const lastEvent = {}
 function processCooldown( member )
 {
+	if ( permissions.isOwner( member ) ) return
 	if ( permissions.hasAdmin( member ) && settings.get( 'moderation', 'cooldown_admin_immunity', false ) ) return
 	if ( commands.tempBlacklist.includes( member.id ) ) return
 	if ( commands.blacklistedUsers.includes( member.id ) ) return
