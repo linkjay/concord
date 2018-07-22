@@ -532,7 +532,7 @@ function parseVars( url )
 	songInfo.volOverride = false
 	if ( url.indexOf( 'vol=' ) !== -1 )
 	{
-		const v = _.parsetime( _.matches( /vol=(.+?)(?:&|$)/g, url )[0] )
+		const v = _.matches( /vol=(.+?)(?:&|$)/g, url )[0]
 		if ( !isNaN( v ) )
 			songInfo.volOverride = Math.max( 0, Math.min( v, settings.get( 'audio', 'volume_max', 1 ) ) )
 	}
