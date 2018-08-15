@@ -503,7 +503,7 @@ function exceedsLength( length_seconds )
 	const max_length = settings.get( 'audio', 'max_length', 62 ) * 60
 	if ( length_seconds > max_length )
 	{
-		const thislen = formatTime( max_length )
+		const thislen = formatTime( length_seconds )
 		const maxlen = formatTime( max_length )
 		return _.fmt( 'song exceeds max length: %s > %s', thislen, maxlen )
 	}
