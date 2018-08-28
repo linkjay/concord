@@ -134,23 +134,26 @@ function isSuppressed( type, member, guild )
 	return false
 }
 
-function voiceStateUpdate( oldMember, newMember )
+function voiceStateUpdate( oldState, newState )
 {
-	if ( oldMember.user.bot )
+	const guild = newState.guild
+	const member = guild.members.get( oldState.id )
+	if ( member.user.bot )
 		return
 
-	const guild = newMember.guild
-	if ( isSuppressed( 'voiceStateUpdate', newMember, guild ) )
+	if ( isSuppressed( 'voiceStateUpdate', member, guild ) )
 		return
 
-	if ( !oldMember.voiceChannel && newMember.voiceChannel )
-		sendGuildNotice( guild.id, `\`${ _.nick( newMember, guild ) }\` connected to \`${ newMember.voiceChannel.name }\``, newMember )
+	const newChannel = guild.channels.get( newState.channelID )
 
-	else if ( oldMember.voiceChannel && !newMember.voiceChannel )
-		sendGuildNotice( guild.id, `\`${ _.nick( oldMember, guild ) }\` disconnected`, oldMember )
+	if ( !oldState.channelID && newState.channelID )
+		sendGuildNotice( guild.id, `\`${ _.nick( member, guild ) }\` connected to \`${ newChannel.name }\``, member )
 
-	else if ( oldMember.voiceChannel && newMember.voiceChannel && oldMember.voiceChannel.id !== newMember.voiceChannel.id )
-		sendGuildNotice( guild.id, `\`${ _.nick( newMember, guild ) }\` switched to \`${ newMember.voiceChannel.name }\``, newMember )
+	else if ( oldState.channelID && !newState.channelID )
+		sendGuildNotice( guild.id, `\`${ _.nick( member, guild ) }\` disconnected`, member )
+
+	else if ( oldState.channelID && newState.channelID && oldState.channelID !== newState.channelID )
+		sendGuildNotice( guild.id, `\`${ _.nick( member, guild ) }\` switched to \`${ newChannel.name }\``, member )
 }
 
 module.exports.setup = _cl => {

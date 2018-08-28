@@ -29,7 +29,7 @@ function updateUserStats()
 						const member = guild.members.get( user.id )
 						if ( member )
 						{
-							const vc = member.voiceChannel
+							const vc = _.getVoiceChannel( client, member )
 							if ( vc )
 							{
 								if ( !seenIn[ user.id ] )

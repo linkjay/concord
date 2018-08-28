@@ -108,14 +108,14 @@ function initAudio()
 	}
 }
 
-function audioBotMoved( bot, oldMember, newMember )
+function audioBotMoved( bot, oldState, newState )
 {
-	if ( newMember.user.id !== bot.user.id ) return
+	if ( newState.id !== bot.user.id ) return
 
-	const oldChannel = oldMember.voiceChannel
+	const oldChannel = bot.channels.get( oldState.channelID )
 	if ( !oldChannel ) return
 
-	const newChannel = newMember.voiceChannel
+	const newChannel = bot.channels.get( newState.channelID )
 	if ( !newChannel ) return
 
 	let shouldLeave = false
@@ -163,7 +163,7 @@ function findSession( msg )
 	if ( msg.member.user.presence.status === 'offline' )
 		return false
 		
-	const channel = msg.member.voiceChannel
+	const channel = _.getVoiceChannel( client, msg.member )
 	if ( !channel )
 		return false
 
@@ -232,7 +232,7 @@ function join_channel( msg )
 {
 	const promise = new Promise( ( resolve, reject ) =>
 		{
-			const channel = msg.member.voiceChannel
+			const channel = _.getVoiceChannel( client, msg.member )
 				
 			if ( !channel )
 				return reject( 'you are not in a voice channel' )
@@ -975,7 +975,7 @@ commands.register( {
 	args: 'query',
 	callback: ( client, msg, args ) =>
 	{
-		const chan = msg.member.voiceChannel
+		const chan = _.getVoiceChannel( client, msg.member )
 		if ( !chan )
 			return msg.channel.send( 'you are not in a voice channel' )
 
@@ -1021,7 +1021,7 @@ commands.register( {
 	args: 'number',
 	callback: ( client, msg, args ) =>
 	{
-		const chan = msg.member.voiceChannel
+		const chan = _.getVoiceChannel( client, msg.member )
 		if ( !chan )
 			return msg.channel.send( 'you are not in a voice channel' )
 
@@ -1048,7 +1048,7 @@ commands.register( {
 			if ( !sess.playing )
 				return msg.channel.send( 'not playing anything to skip' )
 			
-			const channel = msg.member.voiceChannel
+			const channel = _.getVoiceChannel( client, msg.member )
 			const samechan = sess.conn.channel.id === channel.id
 			if ( !samechan )
 				return msg.channel.send( "can't vote to skip from another channel" )
