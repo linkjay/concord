@@ -106,7 +106,7 @@ commands.register( {
 	flags: [ 'admin_only', 'no_pm' ],
 	callback: ( client, msg, args ) =>
 	{
-		const channel = msg.member.voiceChannel
+		const channel = _.getVoiceChannel( client, msg.member )
 		if ( !channel )
 			return msg.channel.send( 'you are not in a voice channel' )
 		
@@ -134,7 +134,7 @@ commands.register( {
 	flags: [ 'no_pm' ],
 	callback: ( client, msg, args ) =>
 	{
-		const channel = msg.member.voiceChannel
+		const channel = _.getVoiceChannel( client, msg.member )
 		if ( !channel )
 			return msg.channel.send( 'you are not in a voice channel' )
 		

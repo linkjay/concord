@@ -135,4 +135,12 @@ _.logError = ( cl, e ) =>
 		console.error( e.error || e )
 	}
 
+_.getVoiceChannel = ( bot, member ) =>
+	{
+		if ( !member.voice || !member.voice.channelID )
+			return false
+
+		return bot.channels.get( member.voice.channelID )
+	}
+
 module.exports = _

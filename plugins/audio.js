@@ -12,8 +12,9 @@ const spawn = require('child_process').spawn
 const exec = require('child_process').exec
 
 const request = require('request')
-const ydl = require( 'youtube-dl' )
+const youtube_dl = require( 'youtube-dl' )
 const ytdl_core = require( 'ytdl-core' )
+const ytsr = require( 'ytsr' )
 const moment = require( 'moment' )
 require( 'moment-duration-format' )
 
@@ -108,14 +109,14 @@ function initAudio()
 	}
 }
 
-function audioBotMoved( bot, oldMember, newMember )
+function audioBotMoved( bot, oldState, newState )
 {
-	if ( newMember.user.id !== bot.user.id ) return
+	if ( newState.id !== bot.user.id ) return
 
-	const oldChannel = oldMember.voiceChannel
+	const oldChannel = bot.channels.get( oldState.channelID )
 	if ( !oldChannel ) return
 
-	const newChannel = newMember.voiceChannel
+	const newChannel = bot.channels.get( newState.channelID )
 	if ( !newChannel ) return
 
 	let shouldLeave = false
@@ -163,7 +164,7 @@ function findSession( msg )
 	if ( msg.member.user.presence.status === 'offline' )
 		return false
 		
-	const channel = msg.member.voiceChannel
+	const channel = _.getVoiceChannel( client, msg.member )
 	if ( !channel )
 		return false
 
@@ -232,7 +233,7 @@ function join_channel( msg )
 {
 	const promise = new Promise( ( resolve, reject ) =>
 		{
-			const channel = msg.member.voiceChannel
+			const channel = _.getVoiceChannel( client, msg.member )
 				
 			if ( !channel )
 				return reject( 'you are not in a voice channel' )
@@ -736,7 +737,7 @@ function queryRemote( msg, url )
 			const additional_urls = settings.get( 'audio', 'additional_urls', default_additional_urls )
 			for ( const i in additional_urls )
 				if ( url.match( additional_urls[i] ) )
-					return ydl.getInfo( url, [], ( err, info ) => parseGeneric( { msg, url, resolve, reject, err, info } ) )
+					return youtube_dl.getInfo( url, [], ( err, info ) => parseGeneric( { msg, url, resolve, reject, err, info } ) )
 
 			const accepted_files = settings.get( 'audio', 'accepted_files', default_accepted_files )
 				for ( const i in accepted_files )
@@ -873,7 +874,7 @@ function playlistQuery( plurl, msg )
 	const promise = new Promise(
 		( resolve, reject ) =>
 		{
-			ydl.exec( plurl, [ '--flat-playlist', '-J' ], {},
+			youtube_dl.exec( plurl, [ '--flat-playlist', '-J' ], {},
 			( err, output ) =>
 				{
 					if ( err )
@@ -966,6 +967,13 @@ commands.register( {
 				})
 	} })
 
+function searchError( tempMsg, chan, err )
+{
+	tempMsg.delete()
+	chan.send( `error searching: \`${err}\`` )
+	console.error( err )
+}
+
 const searchResults = {}
 commands.register( {
 	category: 'audio',
@@ -975,40 +983,54 @@ commands.register( {
 	args: 'query',
 	callback: ( client, msg, args ) =>
 	{
-		const chan = msg.member.voiceChannel
+		const chan = _.getVoiceChannel( client, msg.member )
 		if ( !chan )
 			return msg.channel.send( 'you are not in a voice channel' )
 
 		const query = args
-		const search_url = `https://www.youtube.com/results?search_query=${query}&page=1`
-
 		msg.channel.send( 'searching, please wait...' )
 			.then( tempMsg =>
 				{
-					playlistQuery( search_url, msg )
-					.then( data =>
+					// 1. create filter for videos only first
+					ytsr.getFilters( query, ( err, filters ) =>
 						{
-							tempMsg.delete()
+							if ( err )
+								return searchError( tempMsg, msg.channel, err )
 
-							const results = []
-							const fields = []
-							for ( const i in data )
-							{
-								if ( fields.length >= settings.get( 'audio', 'max_search_results', 10 ) ) break
-								const song = data[i]
-								fields.push( { name: `${parseInt(i)+1}. ${song.title}`, value: song.url } )
-								results.push( song.url )
-							}
+							const filter = filters.get( 'Type' ).find( o => o.name === 'Video' )
+							const options =
+								{
+									limit: settings.get( 'audio', 'max_search_results', 10 ),
+									nextpageRef: filter.ref,
+								}
 
-							const prefix = settings.get( 'config', 'command_prefix', '!' )
-							const embed = new Discord.MessageEmbed({
-								title: `search results for "${query}"`,
-								description: `youtube search in \`${chan.name}\``,
-								fields: fields,
-								footer: { text: `type \`${prefix}playresult #\` or \`${prefix}pr #\` to play a song from your last search` },
-							})
-							msg.channel.send( '', embed )
-							searchResults[ chan.id ] = results
+							// 2. then run actual search w/ filters passed
+							ytsr( null, options, ( err, data ) =>
+								{
+									if ( err )
+										return searchError( tempMsg, msg.channel, err )
+
+									tempMsg.delete()
+
+									const results = []
+									const fields = []
+									for ( const i in data.items )
+									{
+										const song = data.items[i]
+										fields.push( { name: `${parseInt(i)+1}. ${song.title} [${song.duration}] (${song.author.name})`, value: song.link } )
+										results.push( song.link )
+									}
+
+									const prefix = settings.get( 'config', 'command_prefix', '!' )
+									const embed = new Discord.MessageEmbed({
+										title: `search results for "${query}"`,
+										description: `youtube search in \`${chan.name}\``,
+										fields: fields,
+										footer: { text: `type \`${prefix}playresult #\` or \`${prefix}pr #\` to play a song from your last search` },
+									})
+									msg.channel.send( '', embed )
+									searchResults[ chan.id ] = results
+								})
 						})
 				})
 	} })
@@ -1021,7 +1043,7 @@ commands.register( {
 	args: 'number',
 	callback: ( client, msg, args ) =>
 	{
-		const chan = msg.member.voiceChannel
+		const chan = _.getVoiceChannel( client, msg.member )
 		if ( !chan )
 			return msg.channel.send( 'you are not in a voice channel' )
 
@@ -1048,7 +1070,7 @@ commands.register( {
 			if ( !sess.playing )
 				return msg.channel.send( 'not playing anything to skip' )
 			
-			const channel = msg.member.voiceChannel
+			const channel = _.getVoiceChannel( client, msg.member )
 			const samechan = sess.conn.channel.id === channel.id
 			if ( !samechan )
 				return msg.channel.send( "can't vote to skip from another channel" )
