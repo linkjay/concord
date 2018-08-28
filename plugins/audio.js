@@ -14,6 +14,7 @@ const exec = require('child_process').exec
 const request = require('request')
 const youtube_dl = require( 'youtube-dl' )
 const ytdl_core = require( 'ytdl-core' )
+const ytsr = require( 'ytsr' )
 const moment = require( 'moment' )
 require( 'moment-duration-format' )
 
@@ -966,6 +967,13 @@ commands.register( {
 				})
 	} })
 
+function searchError( tempMsg, chan, err )
+{
+	tempMsg.delete()
+	chan.send( `error searching: \`${err}\`` )
+	console.error( err )
+}
+
 const searchResults = {}
 commands.register( {
 	category: 'audio',
@@ -980,35 +988,49 @@ commands.register( {
 			return msg.channel.send( 'you are not in a voice channel' )
 
 		const query = args
-		const search_url = `https://www.youtube.com/results?search_query=${query}&page=1`
-
 		msg.channel.send( 'searching, please wait...' )
 			.then( tempMsg =>
 				{
-					playlistQuery( search_url, msg )
-					.then( data =>
+					// 1. create filter for videos only first
+					ytsr.getFilters( query, ( err, filters ) =>
 						{
-							tempMsg.delete()
+							if ( err )
+								return searchError( tempMsg, msg.channel, err )
 
-							const results = []
-							const fields = []
-							for ( const i in data )
-							{
-								if ( fields.length >= settings.get( 'audio', 'max_search_results', 10 ) ) break
-								const song = data[i]
-								fields.push( { name: `${parseInt(i)+1}. ${song.title}`, value: song.url } )
-								results.push( song.url )
-							}
+							const filter = filters.get( 'Type' ).find( o => o.name === 'Video' )
+							const options =
+								{
+									limit: settings.get( 'audio', 'max_search_results', 10 ),
+									nextpageRef: filter.ref,
+								}
 
-							const prefix = settings.get( 'config', 'command_prefix', '!' )
-							const embed = new Discord.MessageEmbed({
-								title: `search results for "${query}"`,
-								description: `youtube search in \`${chan.name}\``,
-								fields: fields,
-								footer: { text: `type \`${prefix}playresult #\` or \`${prefix}pr #\` to play a song from your last search` },
-							})
-							msg.channel.send( '', embed )
-							searchResults[ chan.id ] = results
+							// 2. then run actual search w/ filters passed
+							ytsr( null, options, ( err, data ) =>
+								{
+									if ( err )
+										return searchError( tempMsg, msg.channel, err )
+
+									tempMsg.delete()
+
+									const results = []
+									const fields = []
+									for ( const i in data.items )
+									{
+										const song = data.items[i]
+										fields.push( { name: `${parseInt(i)+1}. ${song.title} [${song.duration}] (${song.author.name})`, value: song.link } )
+										results.push( song.link )
+									}
+
+									const prefix = settings.get( 'config', 'command_prefix', '!' )
+									const embed = new Discord.MessageEmbed({
+										title: `search results for "${query}"`,
+										description: `youtube search in \`${chan.name}\``,
+										fields: fields,
+										footer: { text: `type \`${prefix}playresult #\` or \`${prefix}pr #\` to play a song from your last search` },
+									})
+									msg.channel.send( '', embed )
+									searchResults[ chan.id ] = results
+								})
 						})
 				})
 	} })
