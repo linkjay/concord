@@ -814,6 +814,22 @@ function playURL( url, msg )
 		{
 			queryRemote( msg, url ).then( info =>
 				{
+					//default to false
+					info.isLivestream = false
+
+					//detect if livestream
+					if(info.length_seconds == "0" && info.streamurl.indexOf("yt_live_broadcast") !== -1) {
+						//set a custom var for livestreams
+						info.isLivestream = true
+						info.length = "LIVE"
+
+						if(!settings.get( 'audio', 'allow_youtube_livestreams', false )) {
+							//is livestream and not allowed
+							return msg.channel.send( "livestreams are not allowed" )
+						}
+					}
+
+					//queue up if we're still here
 					msg.channel.send( queueSong( msg, sess, info ) )
 				}).catch( err => msg.channel.send( '```' + err + '```' ) )
 		})
@@ -1017,8 +1033,15 @@ commands.register( {
 									for ( const i in data.items )
 									{
 										const song = data.items[i]
-										fields.push( { name: `${parseInt(i)+1}. ${song.title} [${song.duration}] (${song.author.name})`, value: song.link } )
-										results.push( song.link )
+										
+										//check if its a livestream by checking if duration is set, and only display this entry if we allow them
+										if(song.duration || (settings.get( 'audio', 'allow_youtube_livestreams', false ) && !song.duration)) {
+											let length = song.duration
+											if(!song.duration) length = "LIVE"
+
+											fields.push( { name: `${parseInt(i)+1}. ${song.title} \`[${length}]\` (${song.author.name})`, value: song.link } )
+											results.push( song.link )
+										}
 									}
 
 									const prefix = settings.get( 'config', 'command_prefix', '!' )
@@ -1211,6 +1234,7 @@ commands.register( {
 			let by_user = get_queuedby_user( song )
 			if ( sess.queue.length > 1 )
 				by_user += `, +${sess.queue.length - 1} in queue`
+
 			msg.channel.send( _.fmt( '`NOW PLAYING in %s:\n%s [%s] (%s)`\n<%s>', sess.conn.channel.name, song.title, song.length, by_user, song.url ) )
 		}
 		else
@@ -1234,19 +1258,33 @@ commands.register( {
 				return msg.channel.send( '```\nempty\n```' )
 			
 			let total_len = 0
+			let livestreams = 0
 			const fields = []
 			for ( const i in queue )
 			{
 				const song = queue[i]
 				total_len += parseInt( song.length_seconds )
 				const by_user = get_queuedby_user( song )
+
+				let length = song.length
+				if(song.isLivestream) {
+					length = "LIVE"
+					livestreams++
+				} 
+
 				fields.push( { name: _.fmt( '%s. %s [%s] (%s)', parseInt(i) + 1, song.title, song.length, by_user ), value: song.url } )
 			}
-			
+
 			total_len = formatTime( total_len )
 
+			if(livestreams != 0) {
+				livestreams = "+ "+ livestreams +" livestreams"
+			}else {
+				livestreams = ""
+			}
+
 			const embed = new Discord.MessageEmbed({
-				title: `${queue.length} songs [${total_len}]`,
+				title: `${queue.length} songs [${total_len}] ${livestreams}`,
 				description: '-',
 				fields: fields,
 			})
@@ -1306,14 +1344,17 @@ commands.register( {
 			if ( !sess.playing ) return
 			
 			if ( args )
-				start_player( sess, _.parsetime( args ) )
+				start_player( sess, _.parsetime( args ) )	
 			else
 			{
 				let currentSeek = formatTime( Math.round(sess.time) )
 				if ( !currentSeek.match( ':' ) )
 					currentSeek = '00:' + currentSeek
+
+				let length = sess.queue[0].length
+				if(sess.queue[0].isLivestream) length = "FOREVER"
 	
-				msg.channel.send( _.fmt( 'current seek time: `%s / %s`', currentSeek, sess.queue[0].length ) )
+				msg.channel.send( _.fmt( 'current seek time: `%s / %s`', currentSeek, length ) )
 			}
 		}
 	} })
