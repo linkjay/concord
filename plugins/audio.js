@@ -12,7 +12,7 @@ const spawn = require('child_process').spawn
 const exec = require('child_process').exec
 
 const request = require('request')
-const ydl = require( 'youtube-dl' )
+const youtube_dl = require( 'youtube-dl' )
 const ytdl_core = require( 'ytdl-core' )
 const moment = require( 'moment' )
 require( 'moment-duration-format' )
@@ -736,7 +736,7 @@ function queryRemote( msg, url )
 			const additional_urls = settings.get( 'audio', 'additional_urls', default_additional_urls )
 			for ( const i in additional_urls )
 				if ( url.match( additional_urls[i] ) )
-					return ydl.getInfo( url, [], ( err, info ) => parseGeneric( { msg, url, resolve, reject, err, info } ) )
+					return youtube_dl.getInfo( url, [], ( err, info ) => parseGeneric( { msg, url, resolve, reject, err, info } ) )
 
 			const accepted_files = settings.get( 'audio', 'accepted_files', default_accepted_files )
 				for ( const i in accepted_files )
@@ -873,7 +873,7 @@ function playlistQuery( plurl, msg )
 	const promise = new Promise(
 		( resolve, reject ) =>
 		{
-			ydl.exec( plurl, [ '--flat-playlist', '-J' ], {},
+			youtube_dl.exec( plurl, [ '--flat-playlist', '-J' ], {},
 			( err, output ) =>
 				{
 					if ( err )
